@@ -11,8 +11,8 @@ describe("vault", () => {
     admin,
     confirm,
     connection,
-    airdrop,
     generateUsers,
+    getSystemAccountMinimumRent,
   } = bootstrap();
 
   const mockVaultName = "vault_v1";
@@ -44,7 +44,6 @@ describe("vault", () => {
         programId: incentive.programId,
       });
 
-    const vaultAirdrop = new anchor.BN(1 * anchor.web3.LAMPORTS_PER_SOL);
     const depositAmount = new anchor.BN(5 * anchor.web3.LAMPORTS_PER_SOL);
     const withdrawAmount = new anchor.BN(2 * anchor.web3.LAMPORTS_PER_SOL);
 
@@ -57,34 +56,6 @@ describe("vault", () => {
 
       const generated = await generateUsers({ count: 2 });
       users.push(...generated.users);
-
-      /**
-       * TODO: Figure out a way to lazy initialize reward state pda
-       *
-       * NOTE:
-       * Even with init_if_need in "start_reward" method in "incentive" program,
-       * reward state pda is still not initialized
-       * (when called through cpi "deposit" method from "saving_vault" program )
-       *
-       * Even with calling "initialize_reward_state" method from
-       * "deposit" method from "saving_vault" program through cpi
-       * reward state pda is still not initialized
-       *
-       * Has to be manually called before depositing (if the deposit method use cpi for "incentive" program)
-       */
-      const user = getUser();
-      const { mockRulePDA, mockRewardStatePDA } = getUserRewardPDAs();
-      const initializeRewardStateSignature = await incentive.methods
-        .initializeRewardState()
-        .accountsPartial({
-          user: user.publicKey,
-          rule: mockRulePDA,
-          rewardState: mockRewardStatePDA,
-        })
-        .signers([user])
-        .rpc()
-        .then(confirm);
-      expect(initializeRewardStateSignature).to.exist;
     });
 
     it("can be created with default values", async () => {
@@ -100,17 +71,12 @@ describe("vault", () => {
       const user = getUser();
       const { mockRulePDA, mockRewardStatePDA } = getUserRewardPDAs();
 
-      const vaultAirdrop = new anchor.BN(1 * anchor.web3.LAMPORTS_PER_SOL);
-      const depositAmount = new anchor.BN(5 * anchor.web3.LAMPORTS_PER_SOL);
-
-      await airdrop({
-        amount: vaultAirdrop.toNumber(),
-        destination: mockVaultPDA,
-      });
+      const rentRequired = await getSystemAccountMinimumRent();
 
       const previousPoints = await incentive.account.ruleTimedState
         .fetch(mockRewardStatePDA)
-        .then((state) => state.points.toNumber());
+        .then((state) => state.points.toNumber())
+        .catch(() => 0);
 
       const signature = await savingVault.methods
         .deposit({
@@ -133,7 +99,9 @@ describe("vault", () => {
         .getAccountInfo(mockVaultPDA)
         .then((info) => info.lamports);
 
-      expect(lamports).to.equal(vaultAirdrop.add(depositAmount).toNumber());
+      expect(lamports).to.equal(
+        depositAmount.add(new anchor.BN(rentRequired)).toNumber()
+      );
 
       // Check the reward state
       const afterPoints = await incentive.account.ruleTimedState
@@ -155,6 +123,8 @@ describe("vault", () => {
     it("can withdraw", async () => {
       const user = getUser();
       const { mockRulePDA, mockRewardStatePDA } = getUserRewardPDAs();
+
+      const rentRequired = await getSystemAccountMinimumRent();
 
       const signature = await savingVault.methods
         .withdraw({
@@ -178,7 +148,10 @@ describe("vault", () => {
         .then((info) => info.lamports);
 
       expect(lamports).to.equal(
-        vaultAirdrop.add(depositAmount).sub(withdrawAmount).toNumber()
+        new anchor.BN(rentRequired)
+          .add(depositAmount)
+          .sub(withdrawAmount)
+          .toNumber()
       );
     });
   });

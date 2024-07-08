@@ -7,6 +7,7 @@ skip-lint = false
 [programs.localnet]
 incentive = "CK2YUNfec9XdLXYYHVhUChPoqLij3jLaTi1QJCfwgxPW"
 saving_vault_example = "HLCMYovVzdfy6is934NaAxa4XgCsGbqmEPyfHV8rzJta"
+transfer_hook_example = "BkbKXWgnVZ6XXzbwAavbfYSaizy9yg3Rqjz6n1Txokae"
 
 [registry]
 url = "https://api.apr.dev"
@@ -16,4 +17,4 @@ cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.spec.ts"
+test = "pnpm npx ts-mocha -p ./programs-tests/tsconfig.json -t 1000000 programs-tests/**/*.spec.ts"

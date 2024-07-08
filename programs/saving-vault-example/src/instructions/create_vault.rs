@@ -1,4 +1,4 @@
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program::{transfer, Transfer}};
 
 #[derive(Accounts)]
 #[instruction(name: String)]
@@ -18,6 +18,7 @@ pub struct CreateVault<'info> {
     )]
     pub vault_state: Account<'info, VaultState>,
     #[account(
+        mut,
         seeds = [b"vault", vault_state.key().as_ref()],
         bump,
     )]
@@ -33,6 +34,16 @@ impl<'info> CreateVault<'info> {
             state_bump: bumps.vault_state,
             vault_bump: bumps.vault,
         });
+        
+        // Transfer minimum balance to the vault.
+        let rent_required = Rent::default().minimum_balance(0);
+        transfer(CpiContext::new(
+            self.system_program.to_account_info(),
+            Transfer {
+            from: self.admin.to_account_info(),
+            to: self.vault.to_account_info(),
+        }), rent_required)?;
+
         Ok(())
     }
 }

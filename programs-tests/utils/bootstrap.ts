@@ -53,6 +53,7 @@ export function bootstrap() {
       users,
     };
   };
+
   return {
     incentive,
     savingVault,
@@ -62,5 +63,7 @@ export function bootstrap() {
     airdrop,
     confirm,
     generateUsers,
+    getSystemAccountMinimumRent: () =>
+      connection.getMinimumBalanceForRentExemption(0),
   };
 }

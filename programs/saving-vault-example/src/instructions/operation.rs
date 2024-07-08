@@ -5,7 +5,7 @@ use anchor_lang::{
 use incentive::{
     cpi::{accounts::StartRewardRule, start_reward},
     program::Incentive,
-    states::{RewardRuleTimed, RuleTimedState},
+    states::RewardRuleTimed,
     StartRewardRuleArgs,
 };
 
@@ -40,7 +40,8 @@ pub struct VaultUserOperation<'info> {
     pub rule: Account<'info, RewardRuleTimed>,
 
     #[account(mut)]
-    pub reward_state: Account<'info, RuleTimedState>,
+    /// CHECK: Stuff
+    pub reward_state: UncheckedAccount<'info>,
 
     pub incentive_program: Program<'info, Incentive>,
 }
@@ -58,7 +59,7 @@ impl<'info> VaultUserOperation<'info> {
             ),
             amount,
         )?;
-
+        // Start measuring the reward.
         start_reward(
             CpiContext::new(
                 self.incentive_program.to_account_info(),
